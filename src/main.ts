@@ -2,13 +2,17 @@ import { Bot } from 'grammy'
 import { env } from './config'
 import { ChatOpenAI } from '@langchain/openai'
 import crypto from 'node:crypto'
-import { setTimeout } from 'node:timers/promises'
 import { MemorySaver } from '@langchain/langgraph'
 import { createAgent, HumanMessage, SystemMessage } from 'langchain'
+import { SearXngApi } from './searxng-api'
+import { ManagedBrowser } from './managed-browser'
+import { write } from 'bun'
 
 const bot = new Bot(env.BOT_TOKEN)
 
 export const main = async (): Promise<void> => {
+  console.log('hello')
+
   const llm = new ChatOpenAI({
     model: 'mercury-2',
     apiKey: env.INCEPTION_API_KEY,
@@ -51,7 +55,20 @@ export const main = async (): Promise<void> => {
     }
     await ctx.reply(content)
   })
-  await bot.start()
+  // await bot.start()
+
+  // const api = new SearXngApi()
+  // console.log(
+  //   await api.search({
+  //     q: 'langchain',
+  //   }),
+  // )
+  await using b = await ManagedBrowser.serve()
+  await using ctx = await b.ctx()
+  const md = await b.fetch('https://en.wikipedia.org/wiki/Elon_Musk', {
+    ctx: ctx.value,
+  })
+  await write('test.md', md);
 }
 
 void main()
