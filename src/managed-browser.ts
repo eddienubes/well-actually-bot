@@ -25,6 +25,12 @@ const filters = {
     'figure',
     'form',
     'button',
+    'aside',
+    '.ad',
+    '.ads',
+    '[class*="cookie"]',
+    '[class*="banner"]',
+    '[aria-hidden="true"]',
     'a',
     'iframe',
     // wikipedia
