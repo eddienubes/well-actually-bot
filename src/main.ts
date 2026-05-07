@@ -7,12 +7,16 @@ import { createAgent, HumanMessage, SystemMessage } from 'langchain'
 import { SearXngApi } from './searxng-api'
 import { ManagedBrowser } from './managed-browser'
 import { write } from 'bun'
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
+import {
+  AutoModelForSequenceClassification,
+  AutoTokenizer,
+  pipeline,
+} from '@huggingface/transformers'
 
 const bot = new Bot(env.BOT_TOKEN)
 
 export const main = async (): Promise<void> => {
-  console.log('hello')
-
   const llm = new ChatOpenAI({
     model: 'mercury-2',
     apiKey: env.INCEPTION_API_KEY,
@@ -63,12 +67,28 @@ export const main = async (): Promise<void> => {
   //     q: 'langchain',
   //   }),
   // )
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 1200,
+    chunkOverlap: 0,
+  })
   await using b = await ManagedBrowser.serve()
   await using ctx = await b.ctx()
-  const md = await b.fetch('https://en.wikipedia.org/wiki/Elon_Musk', {
-    ctx: ctx.value,
-  })
-  await write('test.md', md);
+  const md = await b.fetch(
+    'https://www.theguardian.com/world/2026/may/07/trump-project-freedom-saudi-arabia-strait-of-hormuz',
+    {
+      ctx: ctx.value,
+    },
+  )
+  const splits = await splitter.splitText(md)
+
+  console.log(scores)
+
+  await write('test.md', splits.join(`
+------------------------------ 
+------------------------------ 
+------------------------------ 
+------------------------------ 
+    `))
 }
 
 void main()

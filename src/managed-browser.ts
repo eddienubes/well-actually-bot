@@ -3,13 +3,40 @@ import cp from 'node:child_process'
 import { type Browser, type BrowserContext } from 'puppeteer-core'
 import puppeteer from 'puppeteer-core'
 import { DisposableOf } from './utils/utils'
-import TurndownService from 'turndown'
-import { convert } from '@kreuzberg/html-to-markdown-node'
+import ntm from 'node-html-markdown'
+import { write } from 'bun'
 
-const turndownService = new TurndownService()
-turndownService.remove('img')
-turndownService.remove('br')
-turndownService.remove('hr')
+const filters = {
+  // order matters
+  // e.g. removing scripts allows us to remove cases where scripts are inside <a> tags
+  common: [
+    'script',
+    'svg',
+    'img',
+    'br',
+    'hr',
+    'noscript',
+    'link',
+    'style',
+    'nav',
+    'footer',
+    'header',
+    'sup',
+    'figure',
+    'form',
+    'button',
+    'a',
+    'iframe',
+    // wikipedia
+    '#catlinks',
+  ],
+}
+const postprocesses: ((input: string) => string)[] = [
+  // repeated chars in general
+  (input) => input.replaceAll(/(.)\1{6,}/gs, '$1'),
+  // replace repeated newlines with a single newline
+  (input) => input.replaceAll(/\n{2,}/g, '\n'),
+]
 
 type BrowserOptions = {
   proc: cp.ChildProcessWithoutNullStreams
@@ -40,12 +67,25 @@ export class ManagedBrowser {
   }
 
   async fetch(url: string, options: FetchOptions): Promise<string> {
-    const page = new DisposableOf(await options.ctx.newPage(), async (page) => page.close())
+    await using page = new DisposableOf(await options.ctx.newPage(), async (page) => page.close())
     await page.value.goto(url)
+    await page.value.evaluate((filters) => {
+      const els = document.querySelectorAll(filters.common.join(','))
+      for (const el of els) {
+        if (el.tagName === 'A') {
+          el.parentNode?.replaceChild(document.createTextNode(el.textContent), el)
+          continue
+        }
+        el.parentNode?.removeChild(el)
+      }
+    }, filters)
     const html = await page.value.content()
-    const markdown = convert(html)
-    const noRepeats = markdown.replaceAll(/(.)\1{6,}/gs, '$1')
-    return noRepeats
+    await write('raw.html', html)
+    let markdown = ntm.NodeHtmlMarkdown.translate(html)
+    for (const fn of postprocesses) {
+      markdown = fn(markdown)
+    }
+    return markdown
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
