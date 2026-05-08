@@ -1,14 +1,16 @@
 import { SEARXNG_ENGINES } from './searxng-api'
 
-export type SearchApi = {}
+export interface SearchEngineProvider {
+  readonly name: SearchEngineProviderName
+  search(query: string): Promise<SearchResult[]>
+}
 
-export type SearchEngineProvider =
-  | `seaxng-${SEARXNG_ENGINES[number]}`
+export type SearchEngineProviderName =
+  | `seaxng-${SEARXNG_ENGINES}`
   | 'brave-official'
   | 'tavily-official'
 
 export type SearchResult = {
-  type: string
   url: string
   title: string
   content: string

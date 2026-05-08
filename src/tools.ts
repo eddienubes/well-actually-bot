@@ -1,5 +1,4 @@
 import { type ContentBlock, tool } from 'langchain'
-import type { SearXngApi } from './searxng-api'
 import z from 'zod'
 import type { ManagedBrowser } from './managed-browser'
 import type { BrowserContext } from 'puppeteer-core'

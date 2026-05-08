@@ -8,3 +8,5 @@ export class SearchError extends Error {
 export class BraveApiError extends SearchError {}
 
 export class SearXngApiError extends SearchError {}
+
+export class TavilyApiError extends SearchError {}
