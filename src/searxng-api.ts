@@ -33,6 +33,8 @@ export type SearchResponse = {
   unresponsive_engines: string[]
 }
 
+const engines = ['google', 'brave', 'duckduckgo', 'mojeek', 'qwant', 'startpage', 'yahoo']
+
 export class SearXngApi {
   private readonly baseUrl = env.SEARXNG_BASE_URL
 
@@ -44,14 +46,14 @@ export class SearXngApi {
     const params = new URLSearchParams({
       q: options.q,
       format: 'json',
-      engines: 'google',
+      engines: engines.join(','),
       language: 'en',
     })
     const res = await fetch(`${this.baseUrl}/search?${params}`, {
       method: 'GET',
     })
 
-    const json = await res.json() as SearchResponse
+    const json = (await res.json()) as SearchResponse
     if (res.ok) {
       return json
     }

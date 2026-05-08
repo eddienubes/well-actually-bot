@@ -1,8 +1,6 @@
 import { Bot } from 'grammy'
 import { env } from './config'
 import { ChatOpenAI } from '@langchain/openai'
-import crypto from 'node:crypto'
-import { MemorySaver } from '@langchain/langgraph'
 import { AIMessageChunk, createAgent, HumanMessage, SystemMessage } from 'langchain'
 import { SearXngApi } from './searxng-api'
 import { ManagedBrowser } from './managed-browser'
@@ -13,6 +11,9 @@ import { autoRetry } from '@grammyjs/auto-retry'
 
 const bot = new Bot(env.BOT_TOKEN)
 bot.api.config.use(autoRetry())
+bot.catch(async (error) => {
+  console.log(error)
+})
 
 export const main = async (): Promise<void> => {
   const llm = new ChatOpenAI({
@@ -27,14 +28,10 @@ export const main = async (): Promise<void> => {
   const splitter = new RecursiveCharacterTextSplitter()
   const reranker = await Reranker.create()
 
-  const threadId = crypto.randomUUID()
-  const checkpointer = new MemorySaver()
-
   bot.on('message:text', async (ctx) => {
     await using browserCtx = await browser.ctx()
     const agent = createAgent({
       model: llm,
-      checkpointer,
       tools: [
         createWebSearchTool(searxng),
         createWebFetchTool(browser, browserCtx.value, splitter, reranker),
@@ -46,16 +43,14 @@ export const main = async (): Promise<void> => {
           new SystemMessage(
             `You are a helpful "Well, Actually" assistant.
 Today's date is ${new Date().toISOString()}
-Reply in concise, yet coherent way.
+You MUST NOT use markdown. 
+Keep your answers under 1 paragraph long.
             `,
           ),
           new HumanMessage(ctx.message.text),
         ],
       },
       {
-        configurable: {
-          thread_id: threadId,
-        },
         streamMode: ['messages'],
       },
     )
@@ -67,9 +62,13 @@ Reply in concise, yet coherent way.
         await ctx.replyWithDraft(content)
       }
     }
-    await ctx.reply(content)
+    await ctx.reply(content, {
+      link_preview_options: {
+        is_disabled: true,
+      },
+    })
   })
-  await bot.start()
+  await bot.start({ drop_pending_updates: true })
 }
 
 void main()

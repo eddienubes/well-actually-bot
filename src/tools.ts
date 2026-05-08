@@ -1,4 +1,4 @@
-import { tool } from 'langchain'
+import { type ContentBlock, tool } from 'langchain'
 import type { SearXngApi } from './searxng-api'
 import z from 'zod'
 import type { ManagedBrowser } from './managed-browser'
@@ -9,18 +9,16 @@ import { env } from './config'
 
 export const createWebSearchTool = (searchApi: SearXngApi) => {
   return tool(
-    async (input) => {
+    async (input): Promise<ContentBlock.Text[] | string> => {
       const response = await searchApi.search({
         q: input.query,
       })
-      console.log('response', response)
       if (!response.results.length) {
         return `No results for ${input.query}`
       }
       return response.results.map((hit) => ({
-        url: hit.url,
-        title: hit.title,
-        snippet: hit.content,
+        type: 'text',
+        text: `${hit.url}\n${hit.title}\n${hit.content}`,
       }))
     },
     {
@@ -51,24 +49,30 @@ export const createWebFetchToll = (
   reranker: Reranker,
 ) => {
   return tool(
-    async (input) => {
+    async (input): Promise<ContentBlock.Text[]> => {
       const content = await browser.fetch(input.url, {
         ctx,
       })
       const splits = await splitter.splitText(content)
       const rankedChunks = await reranker.rank(input.query, splits)
-      return rankedChunks.slice(0, env.WEB_FETCH_TOOL_TOP_K).map((chunk) => chunk.text)
+      return rankedChunks.slice(0, env.WEB_FETCH_TOOL_TOP_K).map((chunk) => ({
+        type: 'text',
+        text: chunk.text,
+      }))
     },
     {
       name: 'web_fetch_tool',
       description: `
-Use this tool to fetch content from a particular webpage
+Use this tool to fetch content from a particular webpage by its URL
     `,
       schema: z.object({
-        url: z.url().describe('The URL of the page you would like to read'),
-        query: z.string(
-          'The query you used to find this URL, you can tailor it towards the content you expect to find on the page to optimize the results',
-        ),
+        url: z.url().describe('The URL of the page'),
+        query: z
+          .string()
+          .min(5)
+          .describe(
+            'The query you used to find this URL, you can tailor it towards the content you expect to find on the page to optimize the results',
+          ),
       }),
     },
   )

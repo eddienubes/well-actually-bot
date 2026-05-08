@@ -5,6 +5,7 @@ const envSchema = z.object({
   INCEPTION_API_KEY: z.string(),
   SEARXNG_BASE_URL: z.string(),
 
+  WEB_SEARCH_TOOL_TOP_K: z.number().default(5),
   WEB_FETCH_TOOL_TOP_K: z.number().default(5),
 })
 
