@@ -1,8 +1,10 @@
 import { fetch } from 'bun'
-import { env } from './config'
+import { env } from '../config'
+import { SearXngApiError } from './search.error'
 
 export type SearchOptions = {
   q: string
+  engines: SEARXNG_ENGINES[]
 }
 
 export type SearchResult = {
@@ -33,7 +35,17 @@ export type SearchResponse = {
   unresponsive_engines: string[]
 }
 
-const engines = ['google', 'brave', 'duckduckgo', 'mojeek', 'qwant', 'startpage', 'yahoo', 'bing']
+export const SEARXNG_ENGINES = [
+  'google',
+  'brave',
+  'duckduckgo',
+  'mojeek',
+  'qwant',
+  'startpage',
+  'yahoo',
+  'bing',
+] as const
+export type SEARXNG_ENGINES = (typeof SEARXNG_ENGINES)[number]
 
 export class SearXngApi {
   private readonly baseUrl = env.SEARXNG_BASE_URL
@@ -46,7 +58,7 @@ export class SearXngApi {
     const params = new URLSearchParams({
       q: options.q,
       format: 'json',
-      engines: engines.join(','),
+      engines: options.engines.join(','),
       language: 'en',
     })
     const res = await fetch(`${this.baseUrl}/search?${params}`, {
@@ -57,11 +69,6 @@ export class SearXngApi {
     if (res.ok) {
       return json
     }
-    throw new Error(`Error occurred`, {
-      cause: {
-        json,
-        status: res.status,
-      },
-    })
+    throw new SearXngApiError('SearXNG API error', { status: res.status, body: json })
   }
 }

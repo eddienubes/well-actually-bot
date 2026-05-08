@@ -7,6 +7,8 @@ const envSchema = z.object({
   BOT_TOKEN: z.string(),
   INCEPTION_API_KEY: z.string(),
   SEARXNG_BASE_URL: z.string(),
+  BRAVE_API_TOKEN: z.string(),
+  TAVILY_API_TOKEN: z.string(),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
   WEB_SEARCH_TOOL_TOP_K: z.number().default(5),
