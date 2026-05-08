@@ -1,12 +1,22 @@
 import z from 'zod'
+import path from 'node:path'
+import envPaths from 'env-paths'
 
 const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   BOT_TOKEN: z.string(),
   INCEPTION_API_KEY: z.string(),
   SEARXNG_BASE_URL: z.string(),
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
   WEB_SEARCH_TOOL_TOP_K: z.number().default(5),
   WEB_FETCH_TOOL_TOP_K: z.number().default(5),
 })
 
-export const env = envSchema.parse(process.env)
+export const env = envSchema
+  .transform((e) => ({
+    ...e,
+    IS_DEV: e.NODE_ENV !== 'production',
+    LOG_FILE_PATH: path.join(envPaths('well-actually-bot').log, 'well-actually-bot.log'),
+  }))
+  .parse(process.env)

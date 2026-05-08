@@ -6,13 +6,17 @@ import type { BrowserContext } from 'puppeteer-core'
 import type { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import type { Reranker } from './reranker'
 import { env } from './config'
+import { getLogger } from './logger/logger'
 
 export const createWebSearchTool = (searchApi: SearXngApi) => {
+  const logger = getLogger('web_search_tool')
   return tool(
     async (input): Promise<ContentBlock.Text[] | string> => {
       const response = await searchApi.search({
         q: input.query,
       })
+      logger.debug(response, `got result`)
+
       if (!response.results.length) {
         return `No results for ${input.query}`
       }

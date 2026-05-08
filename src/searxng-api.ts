@@ -33,7 +33,7 @@ export type SearchResponse = {
   unresponsive_engines: string[]
 }
 
-const engines = ['google', 'brave', 'duckduckgo', 'mojeek', 'qwant', 'startpage', 'yahoo']
+const engines = ['google', 'brave', 'duckduckgo', 'mojeek', 'qwant', 'startpage', 'yahoo', 'bing']
 
 export class SearXngApi {
   private readonly baseUrl = env.SEARXNG_BASE_URL

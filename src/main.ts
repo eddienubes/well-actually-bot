@@ -8,12 +8,9 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { Reranker } from './reranker'
 import { createWebSearchTool, createWebFetchToll as createWebFetchTool } from './tools'
 import { autoRetry } from '@grammyjs/auto-retry'
+import { createLoggerMiddleware, getLogger } from './logger/logger'
 
 const bot = new Bot(env.BOT_TOKEN)
-bot.api.config.use(autoRetry())
-bot.catch(async (error) => {
-  console.log(error)
-})
 
 export const main = async (): Promise<void> => {
   const llm = new ChatOpenAI({
@@ -68,7 +65,24 @@ Keep your answers under 1 paragraph long.
       },
     })
   })
-  await bot.start({ drop_pending_updates: true })
+  bot.catch(async (error) => {
+    console.log(error)
+  })
+  bot.use(createLoggerMiddleware())
+  bot.api.config.use(autoRetry())
+  const logger = getLogger('main')
+  await bot.start({
+    drop_pending_updates: true,
+    onStart: (botInfo) => {
+      logger.info(
+        {
+          ...botInfo,
+          logFilePath: env.LOG_FILE_PATH,
+        },
+        `The bot's started`,
+      )
+    },
+  })
 }
 
 void main()
