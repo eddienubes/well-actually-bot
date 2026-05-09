@@ -14,6 +14,7 @@ const envSchema = z.object({
   SEARCH_ENGINE_COOLDOWN_MS: z.number().default(300_000), // 5 mins
   BOT_RATE_LIMIT_HITS: z.number().default(1),
   BOT_RATE_LIMIT_WINDOW_MS: z.number().default(2000),
+  SQL_LITE_FILENAME: z.string().default('wa.sqlite'),
 
   WEB_SEARCH_TOOL_TOP_K: z.number().default(5),
   WEB_FETCH_TOOL_TOP_K: z.number().default(5),
