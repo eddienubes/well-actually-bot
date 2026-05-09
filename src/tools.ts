@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { type ContentBlock, tool } from 'langchain'
 import z from 'zod'
 import type { ManagedBrowser } from './managed-browser'
@@ -7,6 +8,14 @@ import type { Reranker } from './reranker'
 import { env } from './config'
 import { getLogWriter } from './logger/logger'
 import type { SearchEngineProvider } from './search/search.type'
+import type { CacheDao } from './cache/cache.dao'
+
+const WEB_FETCH_CACHE_KEY_PREFIX = 'web_fetch:v1'
+
+export const webFetchCacheKey = (url: string): string => {
+  const hash = crypto.createHash('sha256').update(url.trim()).digest('hex')
+  return `${WEB_FETCH_CACHE_KEY_PREFIX}:${hash}`
+}
 
 export const createWebSearchTool = (searchApi: SearchEngineProvider) => {
   const log = getLogWriter('web_search_tool')
@@ -53,13 +62,20 @@ export const createWebFetchToll = (
   ctx: BrowserContext,
   splitter: RecursiveCharacterTextSplitter,
   reranker: Reranker,
+  cache: CacheDao,
 ) => {
   const log = getLogWriter('web_fetch_tool')
   return tool(
     async (input): Promise<ContentBlock.Text[]> => {
-      const content = await browser.fetch(input.url, {
-        ctx,
-      })
+      const key = webFetchCacheKey(input.url)
+      const cached = cache.get(key)
+      let content: string
+      if (cached !== null) {
+        content = cached
+      } else {
+        content = await browser.fetch(input.url, { ctx })
+        cache.set(key, content, env.WEB_FETCH_CACHE_TTL_MS)
+      }
       const splits = await splitter.splitText(content)
       const rankedChunks = await reranker.rank(input.query, splits)
       const top = rankedChunks.slice(0, env.WEB_FETCH_TOOL_TOP_K)
@@ -68,6 +84,7 @@ export const createWebFetchToll = (
         query: input.query,
         chunksTotal: splits.length,
         chunksReturned: top.length,
+        cacheHit: cached !== null,
       })
       return top.map((chunk) => ({
         type: 'text',

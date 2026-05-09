@@ -103,6 +103,33 @@ describe(CacheDao.name, () => {
     })
   })
 
+  describe('enabled = false', () => {
+    it('should make set a no-op', () => {
+      const disabled = new CacheDao(db, { enabled: false })
+      disabled.set('k', 'v', 60_000)
+      const rows = sqlite.query('SELECT 1 FROM cache').all()
+      expect(rows).toHaveLength(0)
+    })
+
+    it('should make get return null even for entries written through another instance', () => {
+      dao.set('k', 'v', 60_000)
+      const disabled = new CacheDao(db, { enabled: false })
+      expect(disabled.get('k')).toBeNull()
+    })
+
+    it('should still allow delete and purgeExpired (cleanup is independent of caching)', async () => {
+      dao.set('fresh', 'a', 60_000)
+      dao.set('stale', 'b', 30)
+      await Bun.sleep(60)
+
+      const disabled = new CacheDao(db, { enabled: false })
+      expect(disabled.purgeExpired()).toBe(1)
+      disabled.delete('fresh')
+
+      expect(dao.get('fresh')).toBeNull()
+    })
+  })
+
   describe('purgeExpired', () => {
     it('should delete only expired entries and report the count', async () => {
       dao.set('fresh', 'a', 60_000)

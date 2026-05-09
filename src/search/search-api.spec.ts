@@ -134,4 +134,16 @@ describe(SearchApi.name, () => {
     const api = new SearchApi([], cache)
     await expect(api.search('cats')).rejects.toBeInstanceOf(SearchError)
   })
+
+  it('should always hit providers when caching is disabled', async () => {
+    const disabled = new CacheDao(db, { enabled: false })
+    const free = makeProvider(`${SearXngApi.name}-bing`, async () => [result('https://a')])
+    const api = new SearchApi([free], disabled)
+
+    await api.search('cats')
+    await api.search('cats')
+    await api.search('cats')
+
+    expect(free.search).toHaveBeenCalledTimes(3)
+  })
 })

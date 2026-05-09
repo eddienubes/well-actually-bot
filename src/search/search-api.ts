@@ -45,7 +45,9 @@ export class SearchApi implements SearchEngineProvider {
         engine: freeEngine.name,
       })
       try {
-        return await freeEngine.search(query)
+        const results = await freeEngine.search(query)
+        this.cache.set(key, JSON.stringify(results), env.SEARCH_CACHE_TTL_MS)
+        return results
       } catch (error) {
         if (error instanceof SearchRateLimitError) {
           this.freeLb.cooldown(
@@ -62,7 +64,9 @@ export class SearchApi implements SearchEngineProvider {
       this.log.write({
         engine: paidEngine?.name,
       })
-      return await paidEngine.search(query)
+      const results = await paidEngine.search(query)
+      this.cache.set(key, JSON.stringify(results), env.SEARCH_CACHE_TTL_MS)
+      return results
     }
 
     throw new SearchError('No search engine is available')
