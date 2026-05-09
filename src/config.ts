@@ -12,15 +12,15 @@ const envSchema = z.object({
   FIRECRAWL_API_TOKEN: z.string(),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   SEARCH_ENGINE_COOLDOWN_MS: z.number().default(300_000), // 5 mins
-  SEARCH_CACHE_TTL_MS: z.number().default(3_600_000), // 1 hour
-  WEB_FETCH_CACHE_TTL_MS: z.number().default(3_600_000), // 1 hour
-  BOT_RATE_LIMIT_HITS: z.number().default(1),
-  BOT_RATE_LIMIT_WINDOW_MS: z.number().default(2000),
-  SQL_LITE_FILENAME: z.string().default('wa.sqlite'),
-  CACHE_ENABLED: z
+  SEARCH_CACHE_TTL_MS: z.number().default(21_600_000), // 6 hours
+  SEARCH_CACHE_ENABLED: z
     .string()
     .default('true')
     .transform((v) => v === 'true'),
+  WEB_FETCH_CACHE_TTL_MS: z.number().default(21_600_000), // 6 hours
+  BOT_RATE_LIMIT_HITS: z.number().default(1),
+  BOT_RATE_LIMIT_WINDOW_MS: z.number().default(2000),
+  SQL_LITE_FILENAME: z.string().default('wa.sqlite'),
   WEB_SEARCH_TOOL_TOP_K: z.number().default(10),
   WEB_FETCH_TOOL_TOP_K: z.number().default(5),
   BROWSER_URL_OPEN_TIMEOUT_MS: z.number().default(7000),

@@ -29,7 +29,7 @@ export const main = async (): Promise<void> => {
     },
   })
   const db = drizzle(new Database(env.SQL_LITE_FILENAME))
-  const cacheDao = new CacheDao(db, { enabled: env.CACHE_ENABLED })
+  const cacheDao = new CacheDao(db, { enabled: env.SEARCH_CACHE_ENABLED })
   const searchApi = new SearchApi(
     [...SearXngApi.fromEngines(), new TavilyApi(), new BraveApi(), new FirecrawlApi()],
     cacheDao,
