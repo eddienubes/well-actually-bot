@@ -30,14 +30,10 @@ describe(CacheDao.name, () => {
       expect(dao.get('k')).toBe('v')
     })
 
-    it('should return null and evict the row when the entry has expired', async () => {
+    it('should return null when the entry has expired', async () => {
       dao.set('k', 'v', 30)
       await Bun.sleep(60)
-
       expect(dao.get('k')).toBeNull()
-
-      const remaining = sqlite.query('SELECT 1 FROM cache WHERE hash = ?').all('k')
-      expect(remaining).toHaveLength(0)
     })
   })
 

@@ -1,23 +1,21 @@
-import { eq, lt } from 'drizzle-orm'
+import { and, eq, gt, lt } from 'drizzle-orm'
 import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
 import { cacheTable } from '../db/schema'
 
 export class CacheDao {
-  constructor(private readonly db: BunSQLiteDatabase) {}
+  private readonly db: BunSQLiteDatabase
+
+  constructor(db: BunSQLiteDatabase) {
+    this.db = db
+  }
 
   get(hash: string): string | null {
     const [row] = this.db
-      .select()
+      .select({ value: cacheTable.value })
       .from(cacheTable)
-      .where(eq(cacheTable.hash, hash))
-      .limit(1)
+      .where(and(eq(cacheTable.hash, hash), gt(cacheTable.expiresAt, new Date())))
       .all()
-    if (!row) return null
-    if (row.expiresAt.getTime() <= Date.now()) {
-      this.delete(hash)
-      return null
-    }
-    return row.value
+    return row?.value ?? null
   }
 
   set(hash: string, value: string, ttlMs: number): void {
@@ -38,10 +36,11 @@ export class CacheDao {
   }
 
   purgeExpired(): number {
-    const result = this.db
+    const deleted = this.db
       .delete(cacheTable)
       .where(lt(cacheTable.expiresAt, new Date()))
-      .run()
-    return result.changes
+      .returning({ id: cacheTable.id })
+      .all()
+    return deleted.length
   }
 }
