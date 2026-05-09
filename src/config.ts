@@ -21,9 +21,10 @@ const envSchema = z.object({
     .string()
     .default('true')
     .transform((v) => v === 'true'),
-
-  WEB_SEARCH_TOOL_TOP_K: z.number().default(5),
+  WEB_SEARCH_TOOL_TOP_K: z.number().default(10),
   WEB_FETCH_TOOL_TOP_K: z.number().default(5),
+  BROWSER_URL_OPEN_TIMEOUT_MS: z.number().default(7000),
+  CHECK_COMMAND_MAX_INPUT_CHARS: z.number().default(3000),
 })
 
 export const env = envSchema

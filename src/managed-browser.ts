@@ -4,7 +4,8 @@ import { type Browser, type BrowserContext } from 'puppeteer-core'
 import puppeteer from 'puppeteer-core'
 import { DisposableOf } from './utils/utils'
 import ntm from 'node-html-markdown'
-import { write } from 'bun'
+import { env } from './config'
+import { getLogger } from './logger/logger'
 
 const filters = {
   // order matters
@@ -47,6 +48,8 @@ const postprocesses: ((input: string) => string)[] = [
 type BrowserOptions = {
   proc: cp.ChildProcessWithoutNullStreams
   browser: Browser
+  host: string
+  port: number
 }
 
 type FetchOptions = {
@@ -59,7 +62,8 @@ const defaults: LightpandaServeOptions = {
 }
 
 export class ManagedBrowser {
-  protected readonly options: BrowserOptions
+  protected options: BrowserOptions
+  private readonly log = getLogger(ManagedBrowser.name)
 
   private constructor(options: BrowserOptions) {
     this.options = options
@@ -72,9 +76,11 @@ export class ManagedBrowser {
     )
   }
 
-    async fetch(url: string, options: FetchOptions): Promise<string> {
+  async fetch(url: string, options: FetchOptions): Promise<string> {
     await using page = new DisposableOf(await options.ctx.newPage(), async (page) => page.close())
-    await page.value.goto(url)
+    await page.value.goto(url, {
+      timeout: env.BROWSER_URL_OPEN_TIMEOUT_MS,
+    })
     await page.value.evaluate((filters) => {
       const els = document.querySelectorAll(filters.common.join(','))
       for (const el of els) {
@@ -86,7 +92,6 @@ export class ManagedBrowser {
       }
     }, filters)
     const html = await page.value.content()
-    await write('raw.html', html)
     let markdown = ntm.NodeHtmlMarkdown.translate(html)
     for (const fn of postprocesses) {
       markdown = fn(markdown)
@@ -95,6 +100,7 @@ export class ManagedBrowser {
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
+    this.log.info(`disposing`)
     await this.options.browser.close()
 
     this.options.proc.stdout.destroy()
@@ -102,7 +108,24 @@ export class ManagedBrowser {
     this.options.proc.kill()
   }
 
+  async restart(): Promise<void> {
+    this.log.warn(`restarting`)
+    await this[Symbol.asyncDispose]()
+
+    const proc = await lightpanda.serve({})
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://${this.options.host}:${this.options.port}`,
+    })
+    this.options = {
+      ...this.options,
+      proc,
+      browser,
+    }
+  }
+
   static async serve(options: LightpandaServeOptions = defaults): Promise<ManagedBrowser> {
+    const log = getLogger(ManagedBrowser.name)
+    log.info(options, 'serving')
     const proc = await lightpanda.serve({})
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://${options.host}:${options.port}`,
@@ -110,6 +133,8 @@ export class ManagedBrowser {
     return new ManagedBrowser({
       proc,
       browser,
+      host: options.host!,
+      port: options.port!,
     })
   }
 }

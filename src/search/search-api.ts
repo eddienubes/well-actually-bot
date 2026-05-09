@@ -38,9 +38,9 @@ export class SearchApi implements SearchEngineProvider {
       return JSON.parse(cached) as SearchResult[]
     }
 
-    const freeEngine = this.freeLb.useHealthy()
+    let freeEngine = this.freeLb.useHealthy()
 
-    if (freeEngine) {
+    while (freeEngine) {
       this.log.write({
         engine: freeEngine.name,
       })
@@ -51,9 +51,15 @@ export class SearchApi implements SearchEngineProvider {
       } catch (error) {
         if (error instanceof SearchRateLimitError) {
           this.freeLb.cooldown(
-            (item) => item.name === freeEngine.name,
+            (item) => item.name === freeEngine!.name,
             env.SEARCH_ENGINE_COOLDOWN_MS,
           )
+          freeEngine = this.freeLb.useHealthy()
+          this.log.write({
+            engine: freeEngine?.name,
+            error,
+          })
+          continue
         }
         throw error
       }

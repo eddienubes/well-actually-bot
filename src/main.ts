@@ -16,6 +16,7 @@ import { FirecrawlApi } from './search/firecrawl-api'
 import { CacheDao } from './cache/cache.dao'
 import { limit } from '@grammyjs/ratelimiter'
 import { pmHandler } from './handlers/pm.handler'
+import { groupHandler as checkCommandHandler } from './handlers/group.handler'
 
 const bot = new Bot(env.BOT_TOKEN)
 
@@ -47,6 +48,7 @@ export const main = async (): Promise<void> => {
   )
 
   await pmHandler({ bot }, browser, llm, searchApi, splitter, cacheDao, reranker)
+  await checkCommandHandler({ bot }, browser, llm, searchApi, splitter, cacheDao, reranker)
   const logger = getLogger('main')
   bot.catch(createCatchMiddleware())
   await bot.start({

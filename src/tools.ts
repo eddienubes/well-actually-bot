@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { type ContentBlock, tool } from 'langchain'
+import { type ContentBlock, tool, ToolMessage } from 'langchain'
 import z from 'zod'
 import type { ManagedBrowser } from './managed-browser'
 import type { BrowserContext } from 'puppeteer-core'
@@ -9,6 +9,7 @@ import { env } from './config'
 import { getLogWriter } from './logger/logger'
 import type { SearchEngineProvider } from './search/search.type'
 import type { CacheDao } from './cache/cache.dao'
+import type { ToolRunnableConfig } from '@langchain/core/tools'
 
 const WEB_FETCH_CACHE_KEY_PREFIX = 'web_fetch:v1'
 
@@ -42,9 +43,8 @@ export const createWebSearchTool = (searchApi: SearchEngineProvider) => {
 - Allows you to search the web and use the results to build your responses
 - Provides up-to-date information for current events and recent data
 - Returns search result information from a search engine
-- Use this tool for accessing information your knowledge cutoff
-- Searches are performed automatically within a single API call
-- The tool nicely combines with the "web_fetch_tool", if you need to read a particular webpage further
+- Use this tool for accessing information beyond your knowledge cutoff
+- The tool nicely combines with the "web_fetch_tool" to read a particular webpage further
 
 IMPORTANT 
 - Use the correct year in search queries:
@@ -105,6 +105,33 @@ Use this tool to fetch content from a particular webpage by its URL
             'The query you used to find this URL, you can tailor it towards the content you expect to find on the page to optimize the results',
           ),
       }),
+    },
+  )
+}
+
+export const EXIT_TOOL_NAME = 'exit_tool'
+
+export const createExitTool = () => {
+  return tool(
+    async (input, runtime: ToolRunnableConfig) => {
+      const toolCallId = runtime.toolCall?.id
+      if (!toolCallId) {
+        throw new Error(`invalid tool call id`, {
+          cause: runtime.toolCall,
+        })
+      }
+      return new ToolMessage({
+        artifact: input,
+        tool_call_id: toolCallId,
+      })
+    },
+    {
+      name: EXIT_TOOL_NAME,
+      description: 'Use to exit conversational',
+      schema: z.object({
+        reason: z.string().describe('A short reasoning sentence of why you decided to exit'),
+      }),
+      returnDirect: true,
     },
   )
 }

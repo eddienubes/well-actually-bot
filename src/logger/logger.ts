@@ -3,6 +3,8 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import type { Context, ErrorHandler, Middleware } from 'grammy'
 import crypto from 'node:crypto'
 import { env } from '../config.ts'
+import type { ManagedBrowser } from '../managed-browser.ts'
+import { PuppeteerError } from 'puppeteer-core'
 
 const transport = pino.transport({
   targets: [
@@ -99,8 +101,12 @@ export const createLoggerMiddleware = (): Middleware => {
   }
 }
 
-export const createCatchMiddleware = (): ErrorHandler => {
+export const createCatchMiddleware = (browser: ManagedBrowser): ErrorHandler => {
   return (err) => {
+    if (err instanceof PuppeteerError) {
+      void browser.restart()
+    }
+
     const errPayload = serializeError(err.error)
     const store = ctxStore.get(err.ctx)
     if (!store) {
