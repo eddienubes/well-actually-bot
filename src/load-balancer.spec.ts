@@ -3,12 +3,12 @@ import { LoadBalancer } from './load-balancer'
 
 describe(LoadBalancer.name, () => {
   describe('getHealthy', () => {
-    it('returns null when constructed with no items', () => {
+    it('should return null when constructed with no items', () => {
       const lb = new LoadBalancer<string>([])
       expect(lb.getHealthy()).toBeNull()
     })
 
-    it('returns items in round-robin order, wrapping at the end', () => {
+    it('should return items in round-robin order, wrapping at the end', () => {
       const lb = new LoadBalancer(['a', 'b', 'c'])
       expect(lb.getHealthy()).toBe('a')
       expect(lb.getHealthy()).toBe('b')
@@ -17,7 +17,7 @@ describe(LoadBalancer.name, () => {
       expect(lb.getHealthy()).toBe('b')
     })
 
-    it('skips items currently in cooldown', () => {
+    it('should skip items currently in cooldown', () => {
       const lb = new LoadBalancer(['a', 'b', 'c'])
       lb.cooldown((x) => x === 'b', 60_000)
 
@@ -26,7 +26,7 @@ describe(LoadBalancer.name, () => {
       expect(lb.getHealthy()).toBe('a')
     })
 
-    it('returns null when every item is in cooldown', () => {
+    it('should return null when every item is in cooldown', () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'a', 60_000)
       lb.cooldown((x) => x === 'b', 60_000)
@@ -34,7 +34,7 @@ describe(LoadBalancer.name, () => {
       expect(lb.getHealthy()).toBeNull()
     })
 
-    it('promotes expired cooldown items before falling back to null', async () => {
+    it('should promote expired cooldown items before falling back to null', async () => {
       const lb = new LoadBalancer(['a'])
       lb.cooldown((x) => x === 'a', 30)
       expect(lb.getHealthy()).toBeNull()
@@ -45,7 +45,7 @@ describe(LoadBalancer.name, () => {
   })
 
   describe('cooldown', () => {
-    it('removes the matched item from the rotation', () => {
+    it('should remove the matched item from the rotation', () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'a', 60_000)
 
@@ -53,7 +53,7 @@ describe(LoadBalancer.name, () => {
       expect(lb.getHealthy()).toBe('b')
     })
 
-    it('only cools the item matched by the predicate, not its neighbour', () => {
+    it('should only cool the item matched by the predicate, not its neighbour', () => {
       const lb = new LoadBalancer(['a', 'b', 'c'])
       lb.cooldown((x) => x === 'a', 60_000)
 
@@ -68,7 +68,7 @@ describe(LoadBalancer.name, () => {
       expect(seen.has('c')).toBe(true)
     })
 
-    it('is a no-op when the predicate matches nothing', () => {
+    it('should be a no-op when the predicate matches nothing', () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'nope', 60_000)
 
@@ -77,7 +77,7 @@ describe(LoadBalancer.name, () => {
       expect(lb.getHealthy()).toBe('a')
     })
 
-    it('cooling an already-cooled item is a no-op (item is no longer in the active queue)', () => {
+    it('should be a no-op when cooling an already-cooled item (item is no longer in the active queue)', () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'a', 60_000)
       lb.cooldown((x) => x === 'a', 60_000)
@@ -85,7 +85,7 @@ describe(LoadBalancer.name, () => {
       expect(lb.getHealthy()).toBe('b')
     })
 
-    it('multiple items can be cooled independently', () => {
+    it('should cool multiple items independently', () => {
       const lb = new LoadBalancer(['a', 'b', 'c'])
       lb.cooldown((x) => x === 'a', 60_000)
       lb.cooldown((x) => x === 'c', 60_000)
@@ -96,7 +96,7 @@ describe(LoadBalancer.name, () => {
   })
 
   describe('cooldown expiry', () => {
-    it('reinstates an expired item on the next getHealthy call', async () => {
+    it('should reinstate an expired item on the next getHealthy call', async () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'a', 30)
 
@@ -109,7 +109,7 @@ describe(LoadBalancer.name, () => {
       expect(next).toContain('b')
     })
 
-    it('an item that has not yet expired stays in cooldown', async () => {
+    it('should keep an item in cooldown if it has not yet expired', async () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'a', 200)
 
@@ -118,7 +118,7 @@ describe(LoadBalancer.name, () => {
       expect(lb.getHealthy()).toBe('b')
     })
 
-    it('an item can be cooled, expire, be picked, then cooled again', async () => {
+    it('should allow an item to be cooled, expire, be picked, and cooled again', async () => {
       const lb = new LoadBalancer(['a'])
       lb.cooldown((x) => x === 'a', 30)
       expect(lb.getHealthy()).toBeNull()
@@ -133,7 +133,7 @@ describe(LoadBalancer.name, () => {
       expect(lb.getHealthy()).toBe('a')
     })
 
-    it('different cooldown durations expire independently', async () => {
+    it('should expire different cooldown durations independently', async () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'a', 30)
       lb.cooldown((x) => x === 'b', 200)
@@ -156,7 +156,7 @@ describe(LoadBalancer.name, () => {
       { name: 'tavily', tier: 'paid' },
     ]
 
-    it('rotates through all entries when none are cooled', () => {
+    it('should rotate through all entries when none are cooled', () => {
       const lb = new LoadBalancer(providers)
       const order = [
         lb.getHealthy()?.name,
@@ -167,7 +167,7 @@ describe(LoadBalancer.name, () => {
       expect(order).toEqual(['searxng-a', 'searxng-b', 'brave', 'tavily'])
     })
 
-    it('cooldown predicate can target by tier', () => {
+    it('should target items by tier using a cooldown predicate', () => {
       const lb = new LoadBalancer(providers)
       lb.cooldown((p) => p.tier === 'free', 60_000)
 
@@ -179,7 +179,7 @@ describe(LoadBalancer.name, () => {
       expect(remaining).toEqual(new Set(['brave', 'tavily']))
     })
 
-    it('preserves the cause on cooled items (round-trip via expiry)', async () => {
+    it('should preserve the cause on cooled items (round-trip via expiry)', async () => {
       const lb = new LoadBalancer(providers)
       const err = new Error('rate limited')
       lb.cooldown((p) => p.name === 'searxng-a', 30, err)
