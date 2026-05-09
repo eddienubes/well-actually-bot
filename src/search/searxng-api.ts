@@ -1,13 +1,13 @@
 import { fetch } from 'bun'
 import { env } from '../config'
 import { SearXngApiError } from './search.error'
+import type { SearchEngineProvider, SearchResult } from './search.type'
 
-export type SearchOptions = {
-  q: string
+export type SearXngSearchOptions = {
   engines: SEARXNG_ENGINES[]
 }
 
-export type SearchResult = {
+export type SearXngSearchResult = {
   url: string
   title: string
   content: string
@@ -24,10 +24,10 @@ export type SearchResult = {
   publishedDate: string | null
 }
 
-export type SearchResponse = {
+export type SearXngSearchResponse = {
   query: string
   number_of_results: number
-  results: SearchResult[]
+  results: SearXngSearchResult[]
   answers: string[]
   corrections: string[]
   infoboxes: unknown[]
@@ -47,16 +47,17 @@ export const SEARXNG_ENGINES = [
 ] as const
 export type SEARXNG_ENGINES = (typeof SEARXNG_ENGINES)[number]
 
-export class SearXngApi {
+export class SearXngApi implements SearchEngineProvider<SearXngSearchOptions> {
+  readonly name = SearXngApi.name
   private readonly baseUrl = env.SEARXNG_BASE_URL
 
   constructor() {
     fetch.preconnect(this.baseUrl)
   }
 
-  async search(options: SearchOptions): Promise<SearchResponse> {
+  async search(query: string, options: SearXngSearchOptions): Promise<SearchResult[]> {
     const params = new URLSearchParams({
-      q: options.q,
+      q: query,
       format: 'json',
       engines: options.engines.join(','),
       language: 'en',
@@ -65,10 +66,26 @@ export class SearXngApi {
       method: 'GET',
     })
 
-    const json = (await res.json()) as SearchResponse
-    if (res.ok) {
-      return json
+    const json = (await res.json()) as SearXngSearchResponse
+    if (!res.ok) {
+      throw new SearXngApiError('SearXNG API error', { status: res.status, body: json })
     }
-    throw new SearXngApiError('SearXNG API error', { status: res.status, body: json })
+
+    return json.results.map((r) => ({
+      url: r.url,
+      title: r.title,
+      content: r.content,
+      score: r.score,
+    }))
+  }
+
+  static fromEngines(): SearchEngineProvider[] {
+    return SEARXNG_ENGINES.map((engine) => {
+      const api = new SearXngApi()
+      return {
+        name: `searxng-${engine}`,
+        search: async (query) => await api.search(query, { engines: [engine] }),
+      }
+    })
   }
 }

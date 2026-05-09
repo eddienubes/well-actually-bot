@@ -2,7 +2,7 @@ import { Bot } from 'grammy'
 import { env } from './config'
 import { ChatOpenAI } from '@langchain/openai'
 import { AIMessageChunk, createAgent, HumanMessage, SystemMessage } from 'langchain'
-import { SearXngApi } from './searxng-api'
+import { SearchApi } from './search/search-api'
 import { ManagedBrowser } from './managed-browser'
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { Reranker } from './reranker'
@@ -20,7 +20,7 @@ export const main = async (): Promise<void> => {
       baseURL: 'https://api.inceptionlabs.ai/v1',
     },
   })
-  const searxng = new SearXngApi()
+  const searxng = new SearchApi()
   const browser = await ManagedBrowser.serve()
   const splitter = new RecursiveCharacterTextSplitter()
   const reranker = await Reranker.create()

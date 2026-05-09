@@ -6,20 +6,21 @@ import type { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import type { Reranker } from './reranker'
 import { env } from './config'
 import { getLogger } from './logger/logger'
+import type { SearchResult } from './search/search.type'
 
-export const createWebSearchTool = (searchApi: SearXngApi) => {
+type Searchable = { search(query: string): Promise<SearchResult[]> }
+
+export const createWebSearchTool = (searchApi: Searchable) => {
   const logger = getLogger('web_search_tool')
   return tool(
     async (input): Promise<ContentBlock.Text[] | string> => {
-      const response = await searchApi.search({
-        q: input.query,
-      })
-      logger.debug(response, `got result`)
+      const results = await searchApi.search(input.query)
+      logger.debug(results, `got result`)
 
-      if (!response.results.length) {
+      if (!results.length) {
         return `No results for ${input.query}`
       }
-      return response.results.map((hit) => ({
+      return results.map((hit) => ({
         type: 'text',
         text: `${hit.url}\n${hit.title}\n${hit.content}`,
       }))

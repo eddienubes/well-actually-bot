@@ -1,6 +1,7 @@
 import { fetch } from 'bun'
 import { env } from '../config'
 import { BraveApiError } from './search.error'
+import type { SearchEngineProvider, SearchResult } from './search.type'
 
 const BASE_URL = 'https://api.search.brave.com/res/v1'
 
@@ -41,21 +42,16 @@ export type BraveSearchResponse = {
   }
 }
 
-export class BraveApi {
+export class BraveApi implements SearchEngineProvider {
+  readonly name = BraveApi.name
   private readonly baseUrl = BASE_URL
 
   constructor() {
     fetch.preconnect(this.baseUrl)
   }
 
-  async search(options: BraveSearchOptions): Promise<BraveSearchResponse> {
-    const { q, extra_snippets, ...rest } = options
-    const params = new URLSearchParams({ q })
-
-    for (const [key, value] of Object.entries(rest)) {
-      if (value !== undefined) params.set(key, String(value))
-    }
-    if (extra_snippets !== undefined) params.set('extra_snippets', String(extra_snippets))
+  async search(query: string): Promise<SearchResult[]> {
+    const params = new URLSearchParams({ q: query })
 
     const res = await fetch(`${this.baseUrl}/web/search?${params}`, {
       method: 'GET',
@@ -67,9 +63,15 @@ export class BraveApi {
     })
 
     const json = (await res.json()) as BraveSearchResponse
-    if (res.ok) {
-      return json
+    if (!res.ok) {
+      throw new BraveApiError('Brave Search API error', { status: res.status, body: json })
     }
-    throw new BraveApiError('Brave Search API error', { status: res.status, body: json })
+
+    return (json.web?.results ?? []).map((r) => ({
+      url: r.url,
+      title: r.title,
+      content: r.description,
+      score: 0,
+    }))
   }
 }
