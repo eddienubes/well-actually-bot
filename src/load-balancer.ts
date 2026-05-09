@@ -36,6 +36,10 @@ export class LoadBalancer<T> {
     this.refreshCooldownItems()
   }
 
+  listCooldownItems(): LoadBalancerCooldownItem<T>[] {
+    return [...this.cooldownItems]
+  }
+
   private refreshCooldownItems(): void {
     const now = new Date()
     this.cooldownItems = this.cooldownItems.filter((item) => {

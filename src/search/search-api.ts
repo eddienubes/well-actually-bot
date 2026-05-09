@@ -61,8 +61,10 @@ export class SearchApi implements SearchEngineProvider {
     const paidEngine = this.paidLb.useHealthy()
 
     if (paidEngine) {
+      const cooldownEngines = this.freeLb.listCooldownItems()
       this.log.write({
         engine: paidEngine?.name,
+        cooldownEngines,
       })
       const results = await paidEngine.search(query)
       this.cache.set(key, JSON.stringify(results), env.SEARCH_CACHE_TTL_MS)
