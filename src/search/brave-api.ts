@@ -46,10 +46,6 @@ export class BraveApi implements SearchEngineProvider {
   readonly name = BraveApi.name
   private readonly baseUrl = BASE_URL
 
-  constructor() {
-    fetch.preconnect(this.baseUrl)
-  }
-
   async search(query: string): Promise<SearchResult[]> {
     const params = new URLSearchParams({ q: query })
 

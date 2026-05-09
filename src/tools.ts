@@ -5,15 +5,19 @@ import type { BrowserContext } from 'puppeteer-core'
 import type { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import type { Reranker } from './reranker'
 import { env } from './config'
-import { getLogger } from './logger/logger'
+import { getLogWriter } from './logger/logger'
 import type { SearchEngineProvider } from './search/search.type'
 
 export const createWebSearchTool = (searchApi: SearchEngineProvider) => {
-  const logger = getLogger('web_search_tool')
+  const log = getLogWriter('web_search_tool')
   return tool(
     async (input): Promise<ContentBlock.Text[] | string> => {
       const results = await searchApi.search(input.query)
-      logger.debug(results, `got result`)
+      log.write({
+        query: input.query,
+        resultsCount: results.length,
+        urls: results.map((r) => r.url),
+      })
 
       if (!results.length) {
         return `No results for ${input.query}`
@@ -50,6 +54,7 @@ export const createWebFetchToll = (
   splitter: RecursiveCharacterTextSplitter,
   reranker: Reranker,
 ) => {
+  const log = getLogWriter('web_fetch_tool')
   return tool(
     async (input): Promise<ContentBlock.Text[]> => {
       const content = await browser.fetch(input.url, {
@@ -57,7 +62,14 @@ export const createWebFetchToll = (
       })
       const splits = await splitter.splitText(content)
       const rankedChunks = await reranker.rank(input.query, splits)
-      return rankedChunks.slice(0, env.WEB_FETCH_TOOL_TOP_K).map((chunk) => ({
+      const top = rankedChunks.slice(0, env.WEB_FETCH_TOOL_TOP_K)
+      log.write({
+        url: input.url,
+        query: input.query,
+        chunksTotal: splits.length,
+        chunksReturned: top.length,
+      })
+      return top.map((chunk) => ({
         type: 'text',
         text: chunk.text,
       }))

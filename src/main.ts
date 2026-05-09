@@ -8,11 +8,12 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { Reranker } from './reranker'
 import { createWebSearchTool, createWebFetchToll as createWebFetchTool } from './tools'
 import { autoRetry } from '@grammyjs/auto-retry'
-import { createLoggerMiddleware, getLogger } from './logger/logger'
+import { createCatchMiddleware, createLoggerMiddleware, getLogger } from './logger/logger'
 import { TavilyApi } from './search/tavily-api'
 import { SearXngApi } from './search/searxng-api'
 import { BraveApi } from './search/brave-api'
 import { FirecrawlApi } from './search/firecrawl-api'
+import { limit } from '@grammyjs/ratelimiter'
 
 const bot = new Bot(env.BOT_TOKEN)
 
@@ -24,10 +25,24 @@ export const main = async (): Promise<void> => {
       baseURL: 'https://api.inceptionlabs.ai/v1',
     },
   })
-  const searchApi = new SearchApi([...SearXngApi.fromEngines(), new TavilyApi(), new BraveApi(), new FirecrawlApi()])
+  const searchApi = new SearchApi([
+    ...SearXngApi.fromEngines(),
+    new TavilyApi(),
+    new BraveApi(),
+    new FirecrawlApi(),
+  ])
   const browser = await ManagedBrowser.serve()
   const splitter = new RecursiveCharacterTextSplitter()
   const reranker = await Reranker.create()
+
+  bot.use(createLoggerMiddleware())
+  bot.api.config.use(autoRetry())
+  bot.use(
+    limit({
+      timeFrame: env.BOT_RATE_LIMIT_WINDOW_MS,
+      limit: env.BOT_RATE_LIMIT_HITS,
+    }),
+  )
 
   bot.on('message:text', async (ctx) => {
     await using browserCtx = await browser.ctx()
@@ -69,22 +84,12 @@ Keep your answers under 1 paragraph long.
       },
     })
   })
-  bot.catch(async (error) => {
-    console.log(error)
-  })
-  bot.use(createLoggerMiddleware())
-  bot.api.config.use(autoRetry())
   const logger = getLogger('main')
+  bot.catch(createCatchMiddleware())
   await bot.start({
     drop_pending_updates: true,
     onStart: (botInfo) => {
-      logger.info(
-        {
-          ...botInfo,
-          logFilePath: env.LOG_FILE_PATH,
-        },
-        `The bot's started`,
-      )
+      logger.info({ ...botInfo, logFilePath: env.LOG_FILE_PATH }, `The bot's started`)
     },
   })
 }
