@@ -9,6 +9,10 @@ import { Reranker } from './reranker'
 import { createWebSearchTool, createWebFetchToll as createWebFetchTool } from './tools'
 import { autoRetry } from '@grammyjs/auto-retry'
 import { createLoggerMiddleware, getLogger } from './logger/logger'
+import { TavilyApi } from './search/tavily-api'
+import { SearXngApi } from './search/searxng-api'
+import { BraveApi } from './search/brave-api'
+import { FirecrawlApi } from './search/firecrawl-api'
 
 const bot = new Bot(env.BOT_TOKEN)
 
@@ -20,7 +24,7 @@ export const main = async (): Promise<void> => {
       baseURL: 'https://api.inceptionlabs.ai/v1',
     },
   })
-  const searxng = new SearchApi()
+  const searchApi = new SearchApi([...SearXngApi.fromEngines(), new TavilyApi(), new BraveApi(), new FirecrawlApi()])
   const browser = await ManagedBrowser.serve()
   const splitter = new RecursiveCharacterTextSplitter()
   const reranker = await Reranker.create()
@@ -30,7 +34,7 @@ export const main = async (): Promise<void> => {
     const agent = createAgent({
       model: llm,
       tools: [
-        createWebSearchTool(searxng),
+        createWebSearchTool(searchApi),
         createWebFetchTool(browser, browserCtx.value, splitter, reranker),
       ],
     })

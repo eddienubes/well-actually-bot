@@ -6,11 +6,9 @@ import type { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import type { Reranker } from './reranker'
 import { env } from './config'
 import { getLogger } from './logger/logger'
-import type { SearchResult } from './search/search.type'
+import type { SearchEngineProvider } from './search/search.type'
 
-type Searchable = { search(query: string): Promise<SearchResult[]> }
-
-export const createWebSearchTool = (searchApi: Searchable) => {
+export const createWebSearchTool = (searchApi: SearchEngineProvider) => {
   const logger = getLogger('web_search_tool')
   return tool(
     async (input): Promise<ContentBlock.Text[] | string> => {

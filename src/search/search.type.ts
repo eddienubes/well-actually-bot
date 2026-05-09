@@ -9,3 +9,12 @@ export type SearchResult = {
   content: string
   score: number
 }
+
+export class SearchError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message, { cause })
+    this.name = new.target.name
+  }
+}
+
+export class SearchRateLimitError extends SearchError {}

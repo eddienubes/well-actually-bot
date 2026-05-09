@@ -1,7 +1,11 @@
 import { fetch } from 'bun'
 import { env } from '../config'
-import { SearXngApiError } from './search.error'
-import type { SearchEngineProvider, SearchResult } from './search.type'
+import {
+  SearchError,
+  SearchRateLimitError,
+  type SearchEngineProvider,
+  type SearchResult,
+} from './search.type'
 
 export type SearXngSearchOptions = {
   engines: SEARXNG_ENGINES[]
@@ -32,7 +36,7 @@ export type SearXngSearchResponse = {
   corrections: string[]
   infoboxes: unknown[]
   suggestions: string[]
-  unresponsive_engines: string[]
+  unresponsive_engines: [string, string][]
 }
 
 export const SEARXNG_ENGINES = [
@@ -68,7 +72,18 @@ export class SearXngApi implements SearchEngineProvider<SearXngSearchOptions> {
 
     const json = (await res.json()) as SearXngSearchResponse
     if (!res.ok) {
-      throw new SearXngApiError('SearXNG API error', { status: res.status, body: json })
+      throw new SearchError('SearXNG API error', {
+        status: res.status,
+        body: json,
+      })
+    }
+
+    const unresponsiveHit = json.unresponsive_engines.find(([engine]) =>
+      options.engines.includes(engine as SEARXNG_ENGINES),
+    )
+
+    if (unresponsiveHit) {
+      throw new SearchRateLimitError(`searxng rate limit`, unresponsiveHit)
     }
 
     return json.results.map((r) => ({
@@ -83,7 +98,7 @@ export class SearXngApi implements SearchEngineProvider<SearXngSearchOptions> {
     return SEARXNG_ENGINES.map((engine) => {
       const api = new SearXngApi()
       return {
-        name: `searxng-${engine}`,
+        name: `${api.name}-${engine}`,
         search: async (query) => await api.search(query, { engines: [engine] }),
       }
     })

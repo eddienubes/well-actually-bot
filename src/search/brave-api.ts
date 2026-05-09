@@ -1,7 +1,7 @@
 import { fetch } from 'bun'
 import { env } from '../config'
-import { BraveApiError } from './search.error'
 import type { SearchEngineProvider, SearchResult } from './search.type'
+import { SearchError } from './search.type'
 
 const BASE_URL = 'https://api.search.brave.com/res/v1'
 
@@ -64,7 +64,7 @@ export class BraveApi implements SearchEngineProvider {
 
     const json = (await res.json()) as BraveSearchResponse
     if (!res.ok) {
-      throw new BraveApiError('Brave Search API error', { status: res.status, body: json })
+      throw new SearchError('Brave Search API error', { status: res.status, body: json })
     }
 
     return (json.web?.results ?? []).map((r) => ({

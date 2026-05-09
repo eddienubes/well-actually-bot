@@ -9,7 +9,9 @@ const envSchema = z.object({
   SEARXNG_BASE_URL: z.string(),
   BRAVE_API_TOKEN: z.string(),
   TAVILY_API_TOKEN: z.string(),
+  FIRECRAWL_API_TOKEN: z.string(),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+  SEARCH_ENGINE_COOLDOWN_MS: z.number().default(300_000), // 5 mins
 
   WEB_SEARCH_TOOL_TOP_K: z.number().default(5),
   WEB_FETCH_TOOL_TOP_K: z.number().default(5),

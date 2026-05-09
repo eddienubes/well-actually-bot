@@ -1,7 +1,7 @@
 import { tavily } from '@tavily/core'
 import { env } from '../config'
-import { TavilyApiError } from './search.error'
 import type { SearchEngineProvider, SearchResult } from './search.type'
+import { SearchError } from './search.type'
 
 export class TavilyApi implements SearchEngineProvider {
   readonly name = TavilyApi.name;
@@ -17,7 +17,7 @@ export class TavilyApi implements SearchEngineProvider {
         score: r.score,
       }))
     } catch (error) {
-      throw new TavilyApiError('Tavily has failed', error)
+      throw new SearchError('Tavily has failed', error)
     }
   }
 }
