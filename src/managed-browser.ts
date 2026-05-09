@@ -72,7 +72,7 @@ export class ManagedBrowser {
     )
   }
 
-  async fetch(url: string, options: FetchOptions): Promise<string> {
+    async fetch(url: string, options: FetchOptions): Promise<string> {
     await using page = new DisposableOf(await options.ctx.newPage(), async (page) => page.close())
     await page.value.goto(url)
     await page.value.evaluate((filters) => {

@@ -57,7 +57,7 @@ IMPORTANT
   )
 }
 
-export const createWebFetchToll = (
+export const createWebFetchTool = (
   browser: ManagedBrowser,
   ctx: BrowserContext,
   splitter: RecursiveCharacterTextSplitter,

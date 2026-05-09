@@ -3,12 +3,10 @@ import { Database } from 'bun:sqlite'
 import { drizzle } from 'drizzle-orm/bun-sqlite'
 import { env } from './config'
 import { ChatOpenAI } from '@langchain/openai'
-import { AIMessageChunk, createAgent, HumanMessage, SystemMessage } from 'langchain'
 import { SearchApi } from './search/search-api'
 import { ManagedBrowser } from './managed-browser'
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { Reranker } from './reranker'
-import { createWebSearchTool, createWebFetchToll as createWebFetchTool } from './tools'
 import { autoRetry } from '@grammyjs/auto-retry'
 import { createCatchMiddleware, createLoggerMiddleware, getLogger } from './logger/logger'
 import { TavilyApi } from './search/tavily-api'
@@ -17,6 +15,7 @@ import { BraveApi } from './search/brave-api'
 import { FirecrawlApi } from './search/firecrawl-api'
 import { CacheDao } from './cache/cache.dao'
 import { limit } from '@grammyjs/ratelimiter'
+import { pmHandler } from './handlers/pm.handler'
 
 const bot = new Bot(env.BOT_TOKEN)
 
@@ -47,46 +46,7 @@ export const main = async (): Promise<void> => {
     }),
   )
 
-  bot.on('message:text', async (ctx) => {
-    await using browserCtx = await browser.ctx()
-    const agent = createAgent({
-      model: llm,
-      tools: [
-        createWebSearchTool(searchApi),
-        createWebFetchTool(browser, browserCtx.value, splitter, reranker, cacheDao),
-      ],
-    })
-    const stream = await agent.stream(
-      {
-        messages: [
-          new SystemMessage(
-            `You are a helpful "Well, Actually" assistant.
-Today's date is ${new Date().toISOString()}
-You MUST NOT use markdown. 
-Keep your answers under 1 paragraph long.
-            `,
-          ),
-          new HumanMessage(ctx.message.text),
-        ],
-      },
-      {
-        streamMode: ['messages'],
-      },
-    )
-    let content: string = ''
-    for await (const [_, event] of stream) {
-      const [chunk] = event
-      if (AIMessageChunk.isInstance(chunk) && chunk.text) {
-        content += chunk.text
-        await ctx.replyWithDraft(content)
-      }
-    }
-    await ctx.reply(content, {
-      link_preview_options: {
-        is_disabled: true,
-      },
-    })
-  })
+  await pmHandler({ bot }, browser, llm, searchApi, splitter, cacheDao, reranker)
   const logger = getLogger('main')
   bot.catch(createCatchMiddleware())
   await bot.start({
