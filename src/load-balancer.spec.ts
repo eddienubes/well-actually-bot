@@ -5,25 +5,25 @@ describe(LoadBalancer.name, () => {
   describe('getHealthy', () => {
     it('should return null when constructed with no items', () => {
       const lb = new LoadBalancer<string>([])
-      expect(lb.getHealthy()).toBeNull()
+      expect(lb.useHealthy()).toBeNull()
     })
 
     it('should return items in round-robin order, wrapping at the end', () => {
       const lb = new LoadBalancer(['a', 'b', 'c'])
-      expect(lb.getHealthy()).toBe('a')
-      expect(lb.getHealthy()).toBe('b')
-      expect(lb.getHealthy()).toBe('c')
-      expect(lb.getHealthy()).toBe('a')
-      expect(lb.getHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('c')
+      expect(lb.useHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('b')
     })
 
     it('should skip items currently in cooldown', () => {
       const lb = new LoadBalancer(['a', 'b', 'c'])
       lb.cooldown((x) => x === 'b', 60_000)
 
-      expect(lb.getHealthy()).toBe('a')
-      expect(lb.getHealthy()).toBe('c')
-      expect(lb.getHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('c')
+      expect(lb.useHealthy()).toBe('a')
     })
 
     it('should return null when every item is in cooldown', () => {
@@ -31,16 +31,16 @@ describe(LoadBalancer.name, () => {
       lb.cooldown((x) => x === 'a', 60_000)
       lb.cooldown((x) => x === 'b', 60_000)
 
-      expect(lb.getHealthy()).toBeNull()
+      expect(lb.useHealthy()).toBeNull()
     })
 
     it('should promote expired cooldown items before falling back to null', async () => {
       const lb = new LoadBalancer(['a'])
       lb.cooldown((x) => x === 'a', 30)
-      expect(lb.getHealthy()).toBeNull()
+      expect(lb.useHealthy()).toBeNull()
 
       await Bun.sleep(60)
-      expect(lb.getHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('a')
     })
   })
 
@@ -49,8 +49,8 @@ describe(LoadBalancer.name, () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'a', 60_000)
 
-      expect(lb.getHealthy()).toBe('b')
-      expect(lb.getHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('b')
     })
 
     it('should only cool the item matched by the predicate, not its neighbour', () => {
@@ -58,10 +58,10 @@ describe(LoadBalancer.name, () => {
       lb.cooldown((x) => x === 'a', 60_000)
 
       const seen = new Set<string>()
-      seen.add(lb.getHealthy() as string)
-      seen.add(lb.getHealthy() as string)
-      seen.add(lb.getHealthy() as string)
-      seen.add(lb.getHealthy() as string)
+      seen.add(lb.useHealthy() as string)
+      seen.add(lb.useHealthy() as string)
+      seen.add(lb.useHealthy() as string)
+      seen.add(lb.useHealthy() as string)
 
       expect(seen.has('a')).toBe(false)
       expect(seen.has('b')).toBe(true)
@@ -72,9 +72,9 @@ describe(LoadBalancer.name, () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'nope', 60_000)
 
-      expect(lb.getHealthy()).toBe('a')
-      expect(lb.getHealthy()).toBe('b')
-      expect(lb.getHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('a')
     })
 
     it('should be a no-op when cooling an already-cooled item (item is no longer in the active queue)', () => {
@@ -82,7 +82,7 @@ describe(LoadBalancer.name, () => {
       lb.cooldown((x) => x === 'a', 60_000)
       lb.cooldown((x) => x === 'a', 60_000)
 
-      expect(lb.getHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('b')
     })
 
     it('should cool multiple items independently', () => {
@@ -90,8 +90,8 @@ describe(LoadBalancer.name, () => {
       lb.cooldown((x) => x === 'a', 60_000)
       lb.cooldown((x) => x === 'c', 60_000)
 
-      expect(lb.getHealthy()).toBe('b')
-      expect(lb.getHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('b')
     })
   })
 
@@ -100,11 +100,11 @@ describe(LoadBalancer.name, () => {
       const lb = new LoadBalancer(['a', 'b'])
       lb.cooldown((x) => x === 'a', 30)
 
-      expect(lb.getHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('b')
 
       await Bun.sleep(60)
 
-      const next = [lb.getHealthy(), lb.getHealthy()]
+      const next = [lb.useHealthy(), lb.useHealthy()]
       expect(next).toContain('a')
       expect(next).toContain('b')
     })
@@ -114,23 +114,23 @@ describe(LoadBalancer.name, () => {
       lb.cooldown((x) => x === 'a', 200)
 
       await Bun.sleep(20)
-      expect(lb.getHealthy()).toBe('b')
-      expect(lb.getHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('b')
+      expect(lb.useHealthy()).toBe('b')
     })
 
     it('should allow an item to be cooled, expire, be picked, and cooled again', async () => {
       const lb = new LoadBalancer(['a'])
       lb.cooldown((x) => x === 'a', 30)
-      expect(lb.getHealthy()).toBeNull()
+      expect(lb.useHealthy()).toBeNull()
 
       await Bun.sleep(60)
-      expect(lb.getHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('a')
 
       lb.cooldown((x) => x === 'a', 30)
-      expect(lb.getHealthy()).toBeNull()
+      expect(lb.useHealthy()).toBeNull()
 
       await Bun.sleep(60)
-      expect(lb.getHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('a')
     })
 
     it('should expire different cooldown durations independently', async () => {
@@ -138,11 +138,11 @@ describe(LoadBalancer.name, () => {
       lb.cooldown((x) => x === 'a', 30)
       lb.cooldown((x) => x === 'b', 200)
 
-      expect(lb.getHealthy()).toBeNull()
+      expect(lb.useHealthy()).toBeNull()
 
       await Bun.sleep(60)
-      expect(lb.getHealthy()).toBe('a')
-      expect(lb.getHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('a')
+      expect(lb.useHealthy()).toBe('a')
     })
   })
 
@@ -159,10 +159,10 @@ describe(LoadBalancer.name, () => {
     it('should rotate through all entries when none are cooled', () => {
       const lb = new LoadBalancer(providers)
       const order = [
-        lb.getHealthy()?.name,
-        lb.getHealthy()?.name,
-        lb.getHealthy()?.name,
-        lb.getHealthy()?.name,
+        lb.useHealthy()?.name,
+        lb.useHealthy()?.name,
+        lb.useHealthy()?.name,
+        lb.useHealthy()?.name,
       ]
       expect(order).toEqual(['searxng-a', 'searxng-b', 'brave', 'tavily'])
     })
@@ -172,9 +172,9 @@ describe(LoadBalancer.name, () => {
       lb.cooldown((p) => p.tier === 'free', 60_000)
 
       const remaining = new Set<string>()
-      remaining.add(lb.getHealthy()!.name)
-      remaining.add(lb.getHealthy()!.name)
-      remaining.add(lb.getHealthy()!.name)
+      remaining.add(lb.useHealthy()!.name)
+      remaining.add(lb.useHealthy()!.name)
+      remaining.add(lb.useHealthy()!.name)
 
       expect(remaining).toEqual(new Set(['brave', 'tavily']))
     })
@@ -188,7 +188,7 @@ describe(LoadBalancer.name, () => {
 
       const seen: string[] = []
       for (let i = 0; i < providers.length; i++) {
-        seen.push(lb.getHealthy()!.name)
+        seen.push(lb.useHealthy()!.name)
       }
       expect(seen).toContain('searxng-a')
     })

@@ -12,7 +12,7 @@ export class LoadBalancer<T> {
     this.queue.push(...items)
   }
 
-  getHealthy(): T | null {
+  useHealthy(): T | null {
     this.refreshCooldownItems()
     const item = this.queue.shift() || null
     if (item) {

@@ -1,4 +1,6 @@
 import { Bot } from 'grammy'
+import { Database } from 'bun:sqlite'
+import { drizzle } from 'drizzle-orm/bun-sqlite'
 import { env } from './config'
 import { ChatOpenAI } from '@langchain/openai'
 import { AIMessageChunk, createAgent, HumanMessage, SystemMessage } from 'langchain'
@@ -13,6 +15,7 @@ import { TavilyApi } from './search/tavily-api'
 import { SearXngApi } from './search/searxng-api'
 import { BraveApi } from './search/brave-api'
 import { FirecrawlApi } from './search/firecrawl-api'
+import { CacheDao } from './cache/cache.dao'
 import { limit } from '@grammyjs/ratelimiter'
 
 const bot = new Bot(env.BOT_TOKEN)
@@ -25,12 +28,12 @@ export const main = async (): Promise<void> => {
       baseURL: 'https://api.inceptionlabs.ai/v1',
     },
   })
-  const searchApi = new SearchApi([
-    ...SearXngApi.fromEngines(),
-    new TavilyApi(),
-    new BraveApi(),
-    new FirecrawlApi(),
-  ])
+  const db = drizzle(new Database(env.SQL_LITE_FILENAME))
+  const cacheDao = new CacheDao(db)
+  const searchApi = new SearchApi(
+    [...SearXngApi.fromEngines(), new TavilyApi(), new BraveApi(), new FirecrawlApi()],
+    cacheDao,
+  )
   const browser = await ManagedBrowser.serve()
   const splitter = new RecursiveCharacterTextSplitter()
   const reranker = await Reranker.create()

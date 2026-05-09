@@ -1,5 +1,7 @@
+import crypto from 'node:crypto'
 import { env } from '../config'
 import { LoadBalancer } from '../load-balancer'
+import { CacheDao } from '../cache/cache.dao'
 import { BraveApi } from './brave-api'
 import {
   SearchError,
@@ -10,24 +12,38 @@ import {
 import { SearXngApi } from './searxng-api'
 import { TavilyApi } from './tavily-api'
 import { FirecrawlApi } from './firecrawl-api'
+import { getLogWriter } from '../logger/logger'
+
+const CACHE_KEY_PREFIX = 'search:v1'
 
 export class SearchApi implements SearchEngineProvider {
   readonly name = SearchApi.name
   readonly freeLb: LoadBalancer<SearchEngineProvider>
   readonly paidLb: LoadBalancer<SearchEngineProvider>
+  private readonly cache: CacheDao
+  private readonly log = getLogWriter(SearchApi.name)
 
-  constructor(providers: SearchEngineProvider[]) {
+  constructor(providers: SearchEngineProvider[], cache: CacheDao) {
     this.freeLb = new LoadBalancer(providers.filter((p) => p.name.startsWith(SearXngApi.name)))
     this.paidLb = new LoadBalancer(
       providers.filter((p) => [TavilyApi.name, BraveApi.name, FirecrawlApi.name].includes(p.name)),
     )
+    this.cache = cache
   }
 
   async search(query: string): Promise<SearchResult[]> {
-    const freeEngine = this.freeLb.getHealthy()
-    const paidEngine = this.paidLb.getHealthy()
+    const key = SearchApi.cacheKey(query)
+    const cached = this.cache.get(key)
+    if (cached !== null) {
+      return JSON.parse(cached) as SearchResult[]
+    }
+
+    const freeEngine = this.freeLb.useHealthy()
 
     if (freeEngine) {
+      this.log.write({
+        engine: freeEngine.name,
+      })
       try {
         return await freeEngine.search(query)
       } catch (error) {
@@ -40,11 +56,20 @@ export class SearchApi implements SearchEngineProvider {
         throw error
       }
     }
+    const paidEngine = this.paidLb.useHealthy()
 
     if (paidEngine) {
+      this.log.write({
+        engine: paidEngine?.name,
+      })
       return await paidEngine.search(query)
     }
 
     throw new SearchError('No search engine is available')
+  }
+
+  static cacheKey(query: string): string {
+    const hash = crypto.createHash('sha256').update(query.trim()).digest('hex')
+    return `${CACHE_KEY_PREFIX}:${hash}`
   }
 }

@@ -12,6 +12,7 @@ const envSchema = z.object({
   FIRECRAWL_API_TOKEN: z.string(),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   SEARCH_ENGINE_COOLDOWN_MS: z.number().default(300_000), // 5 mins
+  SEARCH_CACHE_TTL_MS: z.number().default(3_600_000), // 1 hour
   BOT_RATE_LIMIT_HITS: z.number().default(1),
   BOT_RATE_LIMIT_WINDOW_MS: z.number().default(2000),
   SQL_LITE_FILENAME: z.string().default('wa.sqlite'),
